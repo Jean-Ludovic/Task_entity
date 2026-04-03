@@ -9,7 +9,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Analytics } from '@vercel/analytics/react';
-import { User } from './user';
 import { UserNav } from './user-nav';
 import Providers from './providers';
 import { NavItem } from './nav-item';
@@ -30,7 +29,6 @@ export default function DashboardLayout({
             <MobileNav />
             <DashboardBreadcrumb />
             <SearchInput />
-            <User />
           </header>
           <main className="grid flex-1 items-start gap-2 p-4 sm:px-6 sm:py-0 md:gap-4 bg-muted/40">
             {children}

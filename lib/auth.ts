@@ -14,8 +14,10 @@ import {
   sessions,
   verificationTokens
 } from '@/lib/auth/schema';
+import { authConfig } from '@/lib/auth.config';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  ...authConfig,
   adapter: DrizzleAdapter(db, {
     usersTable: users,
     accountsTable: accounts,
@@ -23,7 +25,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     verificationTokensTable: verificationTokens
   }),
   session: { strategy: 'jwt' },
-  pages: { signIn: '/login' },
   providers: [
     GitHub,
     Google,
@@ -60,6 +61,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     })
   ],
   callbacks: {
+    ...authConfig.callbacks,
     async jwt({ token, user }) {
       if (user?.id) token.id = user.id;
       return token;
@@ -67,18 +69,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async session({ session, token }) {
       if (token?.id) session.user.id = token.id as string;
       return session;
-    },
-    authorized({ auth, request: { nextUrl } }) {
-      const isLoggedIn = !!auth?.user;
-      const isOnLoginPage = nextUrl.pathname === '/login';
-
-      if (isLoggedIn && isOnLoginPage) {
-        return Response.redirect(new URL('/tasks', nextUrl));
-      }
-      if (!isLoggedIn && !isOnLoginPage) {
-        return Response.redirect(new URL('/login', nextUrl));
-      }
-      return true;
     }
   }
 });

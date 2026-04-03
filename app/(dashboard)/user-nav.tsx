@@ -4,15 +4,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger
-} from '@/components/ui/tooltip';
 
 export async function UserNav() {
   const session = await auth();
@@ -24,43 +18,35 @@ export async function UserNav() {
 
   return (
     <DropdownMenu>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <DropdownMenuTrigger asChild>
-            <button className="flex h-9 w-9 items-center justify-center rounded-full overflow-hidden border bg-muted hover:ring-2 hover:ring-primary transition-all md:h-8 md:w-8">
-              {user?.image ? (
-                <Image
-                  src={user.image}
-                  width={36}
-                  height={36}
-                  alt="Avatar"
-                  className="rounded-full object-cover"
-                />
-              ) : (
-                <span className="text-xs font-semibold text-foreground">
-                  {initials}
-                </span>
-              )}
-            </button>
-          </DropdownMenuTrigger>
-        </TooltipTrigger>
-        <TooltipContent side="right">
-          <p className="font-medium">{user?.name ?? 'Account'}</p>
-          {user?.email && (
-            <p className="text-xs text-muted-foreground">{user.email}</p>
-          )}
-        </TooltipContent>
-      </Tooltip>
+      <DropdownMenuTrigger asChild>
+        <button className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-accent transition-colors">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full overflow-hidden bg-primary text-primary-foreground">
+            {user?.image ? (
+              <Image
+                src={user.image}
+                width={32}
+                height={32}
+                alt="Avatar"
+                className="rounded-full object-cover"
+              />
+            ) : (
+              <span className="text-xs font-semibold">{initials}</span>
+            )}
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-sm font-medium truncate">
+              {user?.name ?? 'Account'}
+            </span>
+            {user?.email && (
+              <span className="text-xs text-muted-foreground truncate">
+                {user.email}
+              </span>
+            )}
+          </div>
+        </button>
+      </DropdownMenuTrigger>
 
       <DropdownMenuContent side="right" align="end" className="w-52">
-        <DropdownMenuLabel className="flex flex-col gap-0.5">
-          <span>{user?.name ?? 'Account'}</span>
-          {user?.email && (
-            <span className="text-xs font-normal text-muted-foreground truncate">
-              {user.email}
-            </span>
-          )}
-        </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <form

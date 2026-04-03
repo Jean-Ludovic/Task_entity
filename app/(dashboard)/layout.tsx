@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/tooltip';
 import { Analytics } from '@vercel/analytics/react';
 import { User } from './user';
+import { UserNav } from './user-nav';
 import Providers from './providers';
 import { NavItem } from './nav-item';
 import { SearchInput } from './search';
@@ -80,6 +81,7 @@ function DesktopNav() {
           </TooltipTrigger>
           <TooltipContent side="right">Settings</TooltipContent>
         </Tooltip>
+        <UserNav />
       </nav>
     </aside>
   );

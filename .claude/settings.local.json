@@ -5,7 +5,10 @@
       "Bash(pnpm build:*)",
       "Bash(pnpm db:push)",
       "Bash(pnpm add:*)",
-      "Bash(openssl rand:*)"
+      "Bash(openssl rand:*)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm db:seed)",
+      "Bash(ls .env*)"
     ]
   }
 }

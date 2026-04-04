@@ -48,6 +48,11 @@ export function TaskTable({ initialData }: Props) {
     initialData.nextCursor
   );
   const [loadingMore, setLoadingMore] = useState(false);
+
+  useEffect(() => {
+    setTasks(initialData.tasks);
+    setNextCursor(initialData.nextCursor);
+  }, [initialData]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | undefined>();
 

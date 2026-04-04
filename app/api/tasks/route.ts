@@ -2,9 +2,13 @@ import { NextRequest } from 'next/server';
 import { listTasks, createTask } from '@/lib/tasks/service';
 import { ListTasksQuerySchema, CreateTaskSchema } from '@/lib/tasks/validation';
 import { toErrorResponse, Errors } from '@/lib/errors';
+import { auth } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) throw Errors.unauthorized();
+
     const params = Object.fromEntries(req.nextUrl.searchParams.entries());
     const parsed = ListTasksQuerySchema.safeParse(params);
 
@@ -14,7 +18,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const result = await listTasks(parsed.data);
+    const result = await listTasks(parsed.data, session.user.id);
     return Response.json(result);
   } catch (error) {
     return toErrorResponse(error);
@@ -23,6 +27,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) throw Errors.unauthorized();
+
     const body: unknown = await req.json();
     const parsed = CreateTaskSchema.safeParse(body);
 
@@ -32,7 +39,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const task = await createTask(parsed.data);
+    const task = await createTask(parsed.data, session.user.id);
     return Response.json(task, { status: 201 });
   } catch (error) {
     return toErrorResponse(error);

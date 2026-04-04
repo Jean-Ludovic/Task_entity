@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { and, asc, desc, eq, ilike, isNull, lt, or } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, lt, or } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { tasks } from './schema';
 import { Errors } from '@/lib/errors';
@@ -34,15 +34,16 @@ function decodeCursor(raw: string): Cursor {
 }
 
 export async function listTasks(
-  query: ListTasksQuery
+  query: ListTasksQuery,
+  userId: string
 ): Promise<PaginatedTasks> {
   const { q, status, sort, order, cursor: rawCursor, limit } = query;
 
-  const conditions = [];
+  const conditions = [eq(tasks.userId, userId)];
 
   if (q) {
     conditions.push(
-      or(ilike(tasks.title, `%${q}%`), ilike(tasks.description, `%${q}%`))
+      or(ilike(tasks.title, `%${q}%`), ilike(tasks.description, `%${q}%`))!
     );
   }
 
@@ -57,7 +58,7 @@ export async function listTasks(
       or(
         lt(tasks.createdAt, cursorDate),
         and(eq(tasks.createdAt, cursorDate), lt(tasks.id, cursor.id))
-      )
+      )!
     );
   }
 
@@ -67,7 +68,7 @@ export async function listTasks(
   const rows = await db
     .select()
     .from(tasks)
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .where(and(...conditions))
     .orderBy(direction(sortColumn), desc(tasks.id))
     .limit(limit + 1);
 
@@ -81,14 +82,21 @@ export async function listTasks(
   return { tasks: items, nextCursor };
 }
 
-export async function getTaskById(id: string): Promise<Task> {
-  const [task] = await db.select().from(tasks).where(eq(tasks.id, id));
+export async function getTaskById(id: string, userId: string): Promise<Task> {
+  const [task] = await db
+    .select()
+    .from(tasks)
+    .where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
   if (!task) throw Errors.notFound('Task');
   return task;
 }
 
-export async function createTask(data: CreateTaskInput): Promise<Task> {
+export async function createTask(
+  data: CreateTaskInput,
+  userId: string
+): Promise<Task> {
   const insert: NewTask = {
+    userId,
     title: data.title,
     description: data.description ?? null,
     status: data.status ?? 'todo',
@@ -101,9 +109,10 @@ export async function createTask(data: CreateTaskInput): Promise<Task> {
 
 export async function updateTask(
   id: string,
-  data: UpdateTaskInput
+  data: UpdateTaskInput,
+  userId: string
 ): Promise<Task> {
-  await getTaskById(id);
+  await getTaskById(id, userId);
   const patch: Partial<NewTask> = {
     ...(data.title !== undefined && { title: data.title }),
     ...(data.description !== undefined && { description: data.description }),
@@ -117,12 +126,13 @@ export async function updateTask(
   const [updated] = await db
     .update(tasks)
     .set(patch)
-    .where(eq(tasks.id, id))
+    .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
     .returning();
 
   return updated;
 }
 
-export async function deleteTask(id: string): Promise<void> {
-  await getTaskById(id);  await db.delete(tasks).where(eq(tasks.id, id));
+export async function deleteTask(id: string, userId: string): Promise<void> {
+  await getTaskById(id, userId);
+  await db.delete(tasks).where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
 }

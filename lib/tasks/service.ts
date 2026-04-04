@@ -9,12 +9,14 @@ import { Errors } from '@/lib/errors';
 import type { Task, NewTask, PaginatedTasks, TaskWithContext } from './types';
 import type { CreateTaskInput, UpdateTaskInput, ListTasksQuery } from './validation';
 
-// ── Cursor pagination helpers ─────────────────────────────────────────────────
+// ── Cursor pagination ─────────────────────────────────────────────────────────
 
 type Cursor = { createdAt: string; id: string };
 
 function encodeCursor(task: Task): string {
-  return Buffer.from(JSON.stringify({ createdAt: task.createdAt.toISOString(), id: task.id })).toString('base64url');
+  return Buffer.from(
+    JSON.stringify({ createdAt: task.createdAt.toISOString(), id: task.id })
+  ).toString('base64url');
 }
 
 function decodeCursor(raw: string): Cursor {
@@ -25,19 +27,19 @@ function decodeCursor(raw: string): Cursor {
   }
 }
 
-// ── Enrich tasks with user/org context ───────────────────────────────────────
+// ── Enrich tasks with user + org context ─────────────────────────────────────
 
-async function enrichTasks(rows: Task[]): Promise<TaskWithContext[]> {
+export async function enrichTasks(rows: Task[]): Promise<TaskWithContext[]> {
   if (rows.length === 0) return [];
 
   const userIds = new Set<string>();
   const orgIds = new Set<string>();
 
-  rows.forEach((t) => {
+  for (const t of rows) {
     if (t.assignedByUserId) userIds.add(t.assignedByUserId);
     if (t.assignedToUserId) userIds.add(t.assignedToUserId);
     if (t.organizationId) orgIds.add(t.organizationId);
-  });
+  }
 
   const [userRows, orgRows] = await Promise.all([
     userIds.size > 0
@@ -65,54 +67,9 @@ async function enrichTasks(rows: Task[]): Promise<TaskWithContext[]> {
   }));
 }
 
-// ── List personal + assigned tasks ───────────────────────────────────────────
+// ── Resolve single task (owner OR assigned) ───────────────────────────────────
 
-export async function listTasks(
-  query: ListTasksQuery,
-  userId: string
-): Promise<PaginatedTasks> {
-  const { q, status, sort, order, cursor: rawCursor, limit } = query;
-
-  // show tasks owned by user OR assigned to user
-  const ownershipCond = or(eq(tasks.userId, userId), eq(tasks.assignedToUserId, userId))!;
-  const conditions = [ownershipCond];
-
-  if (q) {
-    conditions.push(or(ilike(tasks.title, `%${q}%`), ilike(tasks.description, `%${q}%`))!);
-  }
-  if (status) conditions.push(eq(tasks.status, status));
-
-  if (rawCursor) {
-    const cursor = decodeCursor(rawCursor);
-    const cursorDate = new Date(cursor.createdAt);
-    conditions.push(
-      or(lt(tasks.createdAt, cursorDate), and(eq(tasks.createdAt, cursorDate), lt(tasks.id, cursor.id)))!
-    );
-  }
-
-  const sortColumn =
-    sort === 'dueDate' ? tasks.dueDate :
-    sort === 'startAt' ? tasks.startAt :
-    tasks.createdAt;
-  const direction = order === 'asc' ? asc : desc;
-
-  const rows = await db
-    .select()
-    .from(tasks)
-    .where(and(...conditions))
-    .orderBy(direction(sortColumn), desc(tasks.id))
-    .limit(limit + 1);
-
-  const hasNextPage = rows.length > limit;
-  const items = hasNextPage ? rows.slice(0, limit) : rows;
-  const nextCursor = hasNextPage && items.length > 0 ? encodeCursor(items[items.length - 1]) : null;
-
-  return { tasks: items, nextCursor };
-}
-
-// ── Get task by id ────────────────────────────────────────────────────────────
-
-export async function getTaskById(id: string, userId: string): Promise<Task> {
+async function resolveTask(id: string, userId: string): Promise<Task> {
   const [task] = await db
     .select()
     .from(tasks)
@@ -126,14 +83,83 @@ export async function getTaskById(id: string, userId: string): Promise<Task> {
   return task;
 }
 
-// ── Create task ───────────────────────────────────────────────────────────────
+// ── Org admin check ───────────────────────────────────────────────────────────
 
-export async function createTask(data: CreateTaskInput, userId: string): Promise<Task> {
+async function isOrgAdmin(organizationId: string, userId: string): Promise<boolean> {
+  const [m] = await db
+    .select()
+    .from(organizationMembers)
+    .where(
+      and(
+        eq(organizationMembers.organizationId, organizationId),
+        eq(organizationMembers.userId, userId)
+      )
+    );
+  return m?.role === 'admin';
+}
+
+// ── LIST personal + assigned ──────────────────────────────────────────────────
+
+export async function listTasks(
+  query: ListTasksQuery,
+  userId: string
+): Promise<{ tasks: TaskWithContext[]; nextCursor: string | null }> {
+  const { q, status, sort, order, cursor: rawCursor, limit } = query;
+
+  const ownership = or(eq(tasks.userId, userId), eq(tasks.assignedToUserId, userId))!;
+  const conditions = [ownership];
+
+  if (q) {
+    conditions.push(or(ilike(tasks.title, `%${q}%`), ilike(tasks.description, `%${q}%`))!);
+  }
+  if (status) conditions.push(eq(tasks.status, status));
+
+  if (rawCursor) {
+    const cur = decodeCursor(rawCursor);
+    const curDate = new Date(cur.createdAt);
+    conditions.push(
+      or(lt(tasks.createdAt, curDate), and(eq(tasks.createdAt, curDate), lt(tasks.id, cur.id)))!
+    );
+  }
+
+  const sortCol =
+    sort === 'dueDate' ? tasks.dueDate :
+    sort === 'startAt' ? tasks.startAt :
+    tasks.createdAt;
+  const dir = order === 'asc' ? asc : desc;
+
+  const rows = await db
+    .select()
+    .from(tasks)
+    .where(and(...conditions))
+    .orderBy(dir(sortCol), desc(tasks.id))
+    .limit(limit + 1);
+
+  const hasNext = rows.length > limit;
+  const items = hasNext ? rows.slice(0, limit) : rows;
+  const nextCursor = hasNext && items.length > 0 ? encodeCursor(items[items.length - 1]) : null;
+  const enriched = await enrichTasks(items);
+
+  return { tasks: enriched, nextCursor };
+}
+
+// ── GET single ────────────────────────────────────────────────────────────────
+
+export async function getTaskById(id: string, userId: string): Promise<TaskWithContext> {
+  const task = await resolveTask(id, userId);
+  const [enriched] = await enrichTasks([task]);
+  return enriched;
+}
+
+// ── CREATE ────────────────────────────────────────────────────────────────────
+
+export async function createTask(data: CreateTaskInput, userId: string): Promise<TaskWithContext> {
   const insert: NewTask = {
     userId,
     title: data.title,
     description: data.description ?? null,
     status: data.status ?? 'todo',
+    priority: data.priority ?? 'medium',
     dueDate: data.dueDate ? new Date(data.dueDate) : null,
     startAt: data.startAt ? new Date(data.startAt) : null,
     endAt: data.endAt ? new Date(data.endAt) : null,
@@ -143,51 +169,82 @@ export async function createTask(data: CreateTaskInput, userId: string): Promise
   };
 
   const [task] = await db.insert(tasks).values(insert).returning();
-  return task;
+  const [enriched] = await enrichTasks([task]);
+  return enriched;
 }
 
-// ── Update task ───────────────────────────────────────────────────────────────
+// ── UPDATE ────────────────────────────────────────────────────────────────────
+// Owner → full update
+// Assigned user → status only
 
-export async function updateTask(id: string, data: UpdateTaskInput, userId: string): Promise<Task> {
-  await getTaskById(id, userId);
+export async function updateTask(
+  id: string,
+  data: UpdateTaskInput,
+  userId: string
+): Promise<TaskWithContext> {
+  const task = await resolveTask(id, userId);
 
-  const patch: Partial<NewTask> = {
-    ...(data.title !== undefined && { title: data.title }),
-    ...(data.description !== undefined && { description: data.description }),
-    ...(data.status !== undefined && { status: data.status }),
-    ...(data.dueDate !== undefined && { dueDate: data.dueDate ? new Date(data.dueDate) : null }),
-    ...(data.startAt !== undefined && { startAt: data.startAt ? new Date(data.startAt) : null }),
-    ...(data.endAt !== undefined && { endAt: data.endAt ? new Date(data.endAt) : null }),
-    ...(data.assignedToUserId !== undefined && {
-      assignedToUserId: data.assignedToUserId ?? null,
-      assignedByUserId: data.assignedToUserId ? userId : null
-    }),
-    updatedAt: new Date()
-  };
+  const isOwner = task.userId === userId;
+
+  let patch: Partial<NewTask> = { updatedAt: new Date() };
+
+  if (isOwner) {
+    // full update
+    if (data.title !== undefined) patch.title = data.title;
+    if (data.description !== undefined) patch.description = data.description;
+    if (data.status !== undefined) patch.status = data.status;
+    if (data.priority !== undefined) patch.priority = data.priority;
+    if (data.dueDate !== undefined) patch.dueDate = data.dueDate ? new Date(data.dueDate) : null;
+    if (data.startAt !== undefined) patch.startAt = data.startAt ? new Date(data.startAt) : null;
+    if (data.endAt !== undefined) patch.endAt = data.endAt ? new Date(data.endAt) : null;
+    if (data.assignedToUserId !== undefined) {
+      patch.assignedToUserId = data.assignedToUserId ?? null;
+      patch.assignedByUserId = data.assignedToUserId ? userId : null;
+    }
+  } else {
+    // assigned user — status update only
+    if (data.status !== undefined) patch.status = data.status;
+  }
 
   const [updated] = await db
     .update(tasks)
     .set(patch)
-    .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
+    .where(eq(tasks.id, id))
     .returning();
 
-  return updated;
+  const [enriched] = await enrichTasks([updated]);
+  return enriched;
 }
 
-// ── Delete task ───────────────────────────────────────────────────────────────
+// ── DELETE ────────────────────────────────────────────────────────────────────
+// Owner can always delete their task
+// Org admin can delete any task in their org
 
 export async function deleteTask(id: string, userId: string): Promise<void> {
-  await getTaskById(id, userId);
-  await db.delete(tasks).where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
+  const [task] = await db.select().from(tasks).where(eq(tasks.id, id));
+  if (!task) throw Errors.notFound('Task');
+
+  const isOwner = task.userId === userId;
+
+  if (!isOwner) {
+    // check org admin
+    if (task.organizationId) {
+      const admin = await isOrgAdmin(task.organizationId, userId);
+      if (!admin) throw Errors.forbidden();
+    } else {
+      throw Errors.forbidden();
+    }
+  }
+
+  await db.delete(tasks).where(eq(tasks.id, id));
 }
 
-// ── Org tasks ─────────────────────────────────────────────────────────────────
+// ── ORG TASKS ─────────────────────────────────────────────────────────────────
 
 export async function listOrgTasks(
   organizationId: string,
   userId: string
 ): Promise<TaskWithContext[]> {
-  // must be a member
   const [member] = await db
     .select()
     .from(organizationMembers)
@@ -212,7 +269,7 @@ export async function createOrgTask(
   organizationId: string,
   data: CreateTaskInput,
   userId: string
-): Promise<Task> {
+): Promise<TaskWithContext> {
   const [member] = await db
     .select()
     .from(organizationMembers)
@@ -229,6 +286,7 @@ export async function createOrgTask(
     title: data.title,
     description: data.description ?? null,
     status: data.status ?? 'todo',
+    priority: data.priority ?? 'medium',
     dueDate: data.dueDate ? new Date(data.dueDate) : null,
     startAt: data.startAt ? new Date(data.startAt) : null,
     endAt: data.endAt ? new Date(data.endAt) : null,
@@ -238,10 +296,11 @@ export async function createOrgTask(
   };
 
   const [task] = await db.insert(tasks).values(insert).returning();
-  return task;
+  const [enriched] = await enrichTasks([task]);
+  return enriched;
 }
 
-// ── Calendar tasks ────────────────────────────────────────────────────────────
+// ── CALENDAR ──────────────────────────────────────────────────────────────────
 
 export async function listCalendarTasks(
   userId: string,
@@ -251,13 +310,8 @@ export async function listCalendarTasks(
   const rows = await db
     .select()
     .from(tasks)
-    .where(
-      and(
-        or(eq(tasks.userId, userId), eq(tasks.assignedToUserId, userId))!
-      )
-    );
+    .where(or(eq(tasks.userId, userId), eq(tasks.assignedToUserId, userId))!);
 
-  // filter in-memory for tasks that overlap [from, to]
   const filtered = rows.filter((t) => {
     const start = t.startAt ?? t.dueDate;
     const end = t.endAt ?? t.dueDate;

@@ -1,11 +1,13 @@
 import { z } from 'zod';
 
 export const TaskStatusSchema = z.enum(['todo', 'in_progress', 'done']);
+export const TaskPrioritySchema = z.enum(['low', 'medium', 'high']);
 
 export const CreateTaskSchema = z.object({
   title: z.string().min(1, 'Title is required').max(255),
   description: z.string().optional(),
   status: TaskStatusSchema.optional().default('todo'),
+  priority: TaskPrioritySchema.optional().default('medium'),
   dueDate: z.string().datetime({ offset: true }).optional().nullable(),
   startAt: z.string().datetime({ offset: true }).optional().nullable(),
   endAt: z.string().datetime({ offset: true }).optional().nullable(),
@@ -18,6 +20,7 @@ export const UpdateTaskSchema = CreateTaskSchema.partial();
 export const ListTasksQuerySchema = z.object({
   q: z.string().optional(),
   status: TaskStatusSchema.optional(),
+  priority: TaskPrioritySchema.optional(),
   sort: z.enum(['createdAt', 'dueDate', 'startAt']).optional().default('createdAt'),
   order: z.enum(['asc', 'desc']).optional().default('desc'),
   cursor: z.string().optional(),

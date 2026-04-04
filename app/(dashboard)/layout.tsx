@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import {
+  Building2,
+  CalendarDays,
   CheckSquare,
   LayoutDashboard,
   PanelLeft,
@@ -60,6 +62,12 @@ function DesktopNav() {
         </NavItem>
         <NavItem href="/contacts" label="Contacts">
           <Users className="h-5 w-5" />
+        </NavItem>
+        <NavItem href="/organizations" label="Organizations">
+          <Building2 className="h-5 w-5" />
+        </NavItem>
+        <NavItem href="/calendar" label="Calendar">
+          <CalendarDays className="h-5 w-5" />
         </NavItem>
       </nav>
 

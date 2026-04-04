@@ -3,7 +3,8 @@ import {
   CheckSquare,
   LayoutDashboard,
   PanelLeft,
-  Settings
+  Settings,
+  Users
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -56,6 +57,9 @@ function DesktopNav() {
         </NavItem>
         <NavItem href="/tasks" label="Tasks">
           <CheckSquare className="h-5 w-5" />
+        </NavItem>
+        <NavItem href="/contacts" label="Contacts">
+          <Users className="h-5 w-5" />
         </NavItem>
       </nav>
 

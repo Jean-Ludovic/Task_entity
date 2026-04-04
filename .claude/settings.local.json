@@ -9,7 +9,10 @@
       "Bash(pnpm install:*)",
       "Bash(pnpm db:seed)",
       "Bash(ls .env*)",
-      "Bash(wait)"
+      "Bash(wait)",
+      "Bash(npx shadcn@latest add avatar --yes)",
+      "Bash(cp \"./@/components/ui/avatar.tsx\" \"./components/ui/avatar.tsx\")",
+      "Bash(rm -rf \"./@\")"
     ]
   }
 }

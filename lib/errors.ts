@@ -17,6 +17,8 @@ export const Errors = {
     new AppError('BAD_REQUEST', message, 400, details),
   unauthorized: () =>
     new AppError('UNAUTHORIZED', 'Authentication required', 401),
+  forbidden: () =>
+    new AppError('FORBIDDEN', 'Access denied', 403),
   internal: () =>
     new AppError('INTERNAL_ERROR', 'An unexpected error occurred', 500)
 };

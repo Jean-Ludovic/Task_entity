@@ -2,15 +2,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 
-const mockCreateTask = vi.fn();
-const mockListTasks = vi.fn();
-
 vi.mock('@/lib/tasks/service', () => ({
-  createTask: mockCreateTask,
-  listTasks: mockListTasks
+  createTask: vi.fn(),
+  listTasks: vi.fn()
 }));
 
 import { POST, GET } from '@/app/api/tasks/route';
+import { createTask, listTasks } from '@/lib/tasks/service';
+
+const mockCreateTask = vi.mocked(createTask);
+const mockListTasks = vi.mocked(listTasks);
 
 const mockTask = {
   id: 'uuid-1',
@@ -22,9 +23,9 @@ const mockTask = {
   updatedAt: new Date()
 };
 
-function makeRequest(body: unknown, method = 'POST'): Request {
+function makeRequest(body: unknown): Request {
   return new Request('http://localhost/api/tasks', {
-    method,
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
@@ -41,9 +42,7 @@ describe('POST /api/tasks', () => {
 
   it('returns 201 with the created task', async () => {
     mockCreateTask.mockResolvedValue(mockTask);
-
     const res = await POST(makeRequest({ title: 'My task' }) as never);
-
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body).toEqual(mockTask);
@@ -54,7 +53,6 @@ describe('POST /api/tasks', () => {
 
   it('returns 400 when title is missing', async () => {
     const res = await POST(makeRequest({ description: 'no title' }) as never);
-
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error.code).toBe('BAD_REQUEST');
@@ -63,9 +61,7 @@ describe('POST /api/tasks', () => {
 
   it('returns 500 when service throws unexpectedly', async () => {
     mockCreateTask.mockRejectedValue(new Error('DB connection failed'));
-
     const res = await POST(makeRequest({ title: 'Task' }) as never);
-
     expect(res.status).toBe(500);
     const body = await res.json();
     expect(body.error.code).toBe('INTERNAL_ERROR');
@@ -77,9 +73,7 @@ describe('GET /api/tasks', () => {
 
   it('returns paginated tasks', async () => {
     mockListTasks.mockResolvedValue({ tasks: [mockTask], nextCursor: null });
-
     const res = await GET(makeGetRequest() as never);
-
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.tasks).toHaveLength(1);
@@ -88,9 +82,7 @@ describe('GET /api/tasks', () => {
 
   it('passes status filter to service', async () => {
     mockListTasks.mockResolvedValue({ tasks: [], nextCursor: null });
-
     await GET(makeGetRequest({ status: 'done' }) as never);
-
     expect(mockListTasks).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'done' })
     );

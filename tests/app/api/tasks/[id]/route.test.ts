@@ -2,18 +2,19 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 
-const mockGetTaskById = vi.fn();
-const mockUpdateTask = vi.fn();
-const mockDeleteTask = vi.fn();
-
 vi.mock('@/lib/tasks/service', () => ({
-  getTaskById: mockGetTaskById,
-  updateTask: mockUpdateTask,
-  deleteTask: mockDeleteTask
+  getTaskById: vi.fn(),
+  updateTask: vi.fn(),
+  deleteTask: vi.fn()
 }));
 
 import { GET, PUT, DELETE } from '@/app/api/tasks/[id]/route';
-import { AppError, Errors } from '@/lib/errors';
+import { getTaskById, updateTask, deleteTask } from '@/lib/tasks/service';
+import { Errors } from '@/lib/errors';
+
+const mockGetTaskById = vi.mocked(getTaskById);
+const mockUpdateTask = vi.mocked(updateTask);
+const mockDeleteTask = vi.mocked(deleteTask);
 
 const mockTask = {
   id: 'uuid-1',
@@ -83,11 +84,14 @@ describe('PUT /api/tasks/[id]', () => {
     expect(res.status).toBe(404);
   });
 
-  it('accepts a partial update (only status)', async () => {
+  it('accepts a partial update', async () => {
     mockUpdateTask.mockResolvedValue(mockTask);
     const res = await PUT(makeRequest('PUT', { status: 'in_progress' }) as never, makeContext('uuid-1'));
     expect(res.status).toBe(200);
-    expect(mockUpdateTask).toHaveBeenCalledWith('uuid-1', expect.objectContaining({ status: 'in_progress' }));
+    expect(mockUpdateTask).toHaveBeenCalledWith(
+      'uuid-1',
+      expect.objectContaining({ status: 'in_progress' })
+    );
   });
 });
 

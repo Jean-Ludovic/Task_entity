@@ -15,7 +15,6 @@ export default async function TasksPage(props: {
   if (!session?.user?.id) redirect('/login');
 
   const raw = await props.searchParams;
-
   const flat = Object.fromEntries(
     Object.entries(raw).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v])
   );
@@ -24,5 +23,12 @@ export default async function TasksPage(props: {
   const initialData = await listTasks(query, session.user.id);
 
   const key = `${query.status ?? ''}-${query.q ?? ''}-${query.sort}-${query.order}`;
-  return <TaskTable key={key} initialData={initialData} />;
+
+  return (
+    <TaskTable
+      key={key}
+      initialData={initialData}
+      currentUserId={session.user.id}
+    />
+  );
 }

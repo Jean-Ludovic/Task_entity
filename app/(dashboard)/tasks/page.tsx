@@ -23,5 +23,6 @@ export default async function TasksPage(props: {
   const query = ListTasksQuerySchema.parse(flat);
   const initialData = await listTasks(query, session.user.id);
 
-  return <TaskTable initialData={initialData} />;
+  const key = `${query.status ?? ''}-${query.q ?? ''}-${query.sort}-${query.order}`;
+  return <TaskTable key={key} initialData={initialData} />;
 }

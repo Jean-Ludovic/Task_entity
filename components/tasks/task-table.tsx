@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useCallback, useEffect } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { PlusCircle, Pencil, Trash2, Search } from 'lucide-react';
+import { PlusCircle, Pencil, Trash2, Search, ArrowUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -58,17 +58,23 @@ export function TaskTable({ initialData }: Props) {
 
   // ── URL-based filter helpers ──────────────────────────────────────────────
 
-  function updateParam(key: string, value: string) {
+  function updateParams(updates: Record<string, string>) {
     const params = new URLSearchParams(searchParams.toString());
-    if (value) {
-      params.set(key, value);
-    } else {
-      params.delete(key);
+    for (const [key, value] of Object.entries(updates)) {
+      if (value) {
+        params.set(key, value);
+      } else {
+        params.delete(key);
+      }
     }
-    params.delete('cursor'); // reset pagination on filter change
+    params.delete('cursor');
     startTransition(() => {
       router.replace(`${pathname}?${params.toString()}`);
     });
+  }
+
+  function updateParam(key: string, value: string) {
+    updateParams({ [key]: value });
   }
 
   // ── Mutations ─────────────────────────────────────────────────────────────
@@ -124,6 +130,16 @@ export function TaskTable({ initialData }: Props) {
 
   const currentStatus = searchParams.get('status') ?? '';
   const currentSearch = searchParams.get('q') ?? '';
+  const currentSort = searchParams.get('sort') ?? 'createdAt';
+  const currentOrder = searchParams.get('order') ?? 'desc';
+
+  function toggleDateSort() {
+    if (currentSort !== 'dueDate') {
+      updateParams({ sort: 'dueDate', order: 'asc' });
+    } else {
+      updateParam('order', currentOrder === 'asc' ? 'desc' : 'asc');
+    }
+  }
   const [searchInput, setSearchInput] = useState(currentSearch);
 
   useEffect(() => {
@@ -171,7 +187,7 @@ export function TaskTable({ initialData }: Props) {
                 onChange={(e) => setSearchInput(e.target.value)}
               />
             </div>
-            <div className="flex gap-1">
+            <div className="flex gap-1 flex-wrap">
               {STATUS_FILTERS.map((f) => (
                 <Button
                   key={f.value}
@@ -183,6 +199,15 @@ export function TaskTable({ initialData }: Props) {
                   {f.label}
                 </Button>
               ))}
+              <Button
+                size="sm"
+                variant={currentSort === 'dueDate' ? 'default' : 'outline'}
+                className="h-8 gap-1"
+                onClick={toggleDateSort}
+              >
+                <ArrowUpDown className="h-3.5 w-3.5" />
+                Due date {currentSort === 'dueDate' ? (currentOrder === 'asc' ? '↑' : '↓') : ''}
+              </Button>
             </div>
           </div>
         </CardHeader>

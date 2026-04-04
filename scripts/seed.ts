@@ -58,7 +58,7 @@ const DESCRIPTIONS = [
   null
 ];
 
-const STATUSES = ['todo', 'in_progress', 'done'] as const;
+const STATUSES: Array<'todo' | 'in_progress' | 'done'> = ['todo', 'in_progress', 'done'];
 
 function randomItem<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];

@@ -4,7 +4,8 @@
       "Bash(npx vercel:*)",
       "Bash(pnpm build:*)",
       "Bash(pnpm db:push)",
-      "Bash(pnpm add:*)"
+      "Bash(pnpm add:*)",
+      "Bash(openssl rand:*)"
     ]
   }
 }

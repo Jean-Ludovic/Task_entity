@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { NextRequest } from 'next/server';
 
 vi.mock('server-only', () => ({}));
 
@@ -13,28 +14,30 @@ import { createTask, listTasks } from '@/lib/tasks/service';
 const mockCreateTask = vi.mocked(createTask);
 const mockListTasks = vi.mocked(listTasks);
 
+const now = new Date('2026-01-01T00:00:00.000Z');
+
 const mockTask = {
   id: 'uuid-1',
   title: 'My task',
   description: null,
   status: 'todo' as const,
   dueDate: null,
-  createdAt: new Date(),
-  updatedAt: new Date()
+  createdAt: now,
+  updatedAt: now
 };
 
-function makeRequest(body: unknown): Request {
-  return new Request('http://localhost/api/tasks', {
+function makePostRequest(body: unknown): NextRequest {
+  return new NextRequest('http://localhost/api/tasks', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
 }
 
-function makeGetRequest(params: Record<string, string> = {}): Request {
+function makeGetRequest(params: Record<string, string> = {}): NextRequest {
   const url = new URL('http://localhost/api/tasks');
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  return new Request(url.toString(), { method: 'GET' });
+  return new NextRequest(url.toString(), { method: 'GET' });
 }
 
 describe('POST /api/tasks', () => {
@@ -42,17 +45,23 @@ describe('POST /api/tasks', () => {
 
   it('returns 201 with the created task', async () => {
     mockCreateTask.mockResolvedValue(mockTask);
-    const res = await POST(makeRequest({ title: 'My task' }) as never);
+    const res = await POST(makePostRequest({ title: 'My task' }) as never);
     expect(res.status).toBe(201);
     const body = await res.json();
-    expect(body).toEqual(mockTask);
+    expect(body).toMatchObject({
+      id: 'uuid-1',
+      title: 'My task',
+      status: 'todo',
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString()
+    });
     expect(mockCreateTask).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'My task' })
     );
   });
 
   it('returns 400 when title is missing', async () => {
-    const res = await POST(makeRequest({ description: 'no title' }) as never);
+    const res = await POST(makePostRequest({ description: 'no title' }) as never);
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error.code).toBe('BAD_REQUEST');
@@ -61,7 +70,7 @@ describe('POST /api/tasks', () => {
 
   it('returns 500 when service throws unexpectedly', async () => {
     mockCreateTask.mockRejectedValue(new Error('DB connection failed'));
-    const res = await POST(makeRequest({ title: 'Task' }) as never);
+    const res = await POST(makePostRequest({ title: 'Task' }) as never);
     expect(res.status).toBe(500);
     const body = await res.json();
     expect(body.error.code).toBe('INTERNAL_ERROR');

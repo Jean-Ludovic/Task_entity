@@ -15,6 +15,8 @@ export const Errors = {
     new AppError('NOT_FOUND', `${resource} not found`, 404),
   badRequest: (message: string, details?: Record<string, unknown>) =>
     new AppError('BAD_REQUEST', message, 400, details),
+  unauthorized: () =>
+    new AppError('UNAUTHORIZED', 'Authentication required', 401),
   internal: () =>
     new AppError('INTERNAL_ERROR', 'An unexpected error occurred', 500)
 };

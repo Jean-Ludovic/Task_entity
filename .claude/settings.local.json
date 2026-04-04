@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx vercel:*)"
+      "Bash(npx vercel:*)",
+      "Bash(pnpm build:*)",
+      "Bash(pnpm db:push)",
+      "Bash(pnpm add:*)"
     ]
   }
 }

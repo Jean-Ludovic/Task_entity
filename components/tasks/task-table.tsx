@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useCallback } from 'react';
+import { useState, useTransition, useCallback, useEffect } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { PlusCircle, Pencil, Trash2, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -119,6 +119,15 @@ export function TaskTable({ initialData }: Props) {
 
   const currentStatus = searchParams.get('status') ?? '';
   const currentSearch = searchParams.get('q') ?? '';
+  const [searchInput, setSearchInput] = useState(currentSearch);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      updateParam('q', searchInput);
+    }, 350);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput]);
 
   return (
     <>
@@ -152,9 +161,9 @@ export function TaskTable({ initialData }: Props) {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search tasks…"
-                defaultValue={currentSearch}
+                value={searchInput}
                 className="pl-8"
-                onChange={(e) => updateParam('q', e.target.value)}
+                onChange={(e) => setSearchInput(e.target.value)}
               />
             </div>
             <div className="flex gap-1">

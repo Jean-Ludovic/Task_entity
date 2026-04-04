@@ -10,6 +10,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@/lib': resolve(__dirname, './lib'),
+      '@/app': resolve(__dirname, './app'),
       '@/components': resolve(__dirname, './components'),
       '@/hooks': resolve(__dirname, './hooks')
     }

@@ -10,7 +10,6 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
   try {
     const session = await auth();
     if (!session?.user?.id) throw Errors.unauthorized();
-
     const { id } = await params;
     const task = await getTaskById(id, session.user.id);
     return Response.json(task);
@@ -19,21 +18,18 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
   }
 }
 
-export async function PUT(req: NextRequest, { params }: RouteContext) {
+async function handleUpdate(req: NextRequest, { params }: RouteContext) {
   try {
     const session = await auth();
     if (!session?.user?.id) throw Errors.unauthorized();
-
     const { id } = await params;
     const body: unknown = await req.json();
     const parsed = UpdateTaskSchema.safeParse(body);
-
     if (!parsed.success) {
       throw Errors.badRequest('Validation failed', {
         issues: parsed.error.flatten().fieldErrors
       });
     }
-
     const task = await updateTask(id, parsed.data, session.user.id);
     return Response.json(task);
   } catch (error) {
@@ -41,11 +37,14 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
   }
 }
 
+// Support both PUT (legacy) and PATCH (standard partial update)
+export const PUT = handleUpdate;
+export const PATCH = handleUpdate;
+
 export async function DELETE(_req: NextRequest, { params }: RouteContext) {
   try {
     const session = await auth();
     if (!session?.user?.id) throw Errors.unauthorized();
-
     const { id } = await params;
     await deleteTask(id, session.user.id);
     return new Response(null, { status: 204 });

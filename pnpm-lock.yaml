@@ -62,9 +62,6 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
-      drizzle-kit:
-        specifier: ^0.22.8
-        version: 0.22.8
       drizzle-orm:
         specifier: ^0.31.4
         version: 0.31.4(@neondatabase/serverless@0.9.5)(@types/pg@8.11.6)(@types/react@19.0.0)(react@19.0.0)
@@ -120,6 +117,9 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^2.1.8
         version: 2.1.9(vitest@2.1.9(@types/node@20.17.6))
+      drizzle-kit:
+        specifier: ^0.22.8
+        version: 0.22.8
       vitest:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@20.17.6)

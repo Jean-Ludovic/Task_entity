@@ -6,6 +6,7 @@ import { organizations, organizationMembers, organizationInvitations } from './s
 import { users } from '@/lib/auth/schema';
 import { contactRequests } from '@/lib/contacts/schema';
 import { Errors } from '@/lib/errors';
+import { createNotification } from '@/lib/notifications/service';
 import type {
   OrganizationWithRole,
   OrgMemberWithUser,
@@ -211,6 +212,20 @@ export async function inviteMember(
     .insert(organizationInvitations)
     .values({ organizationId, senderId, receiverId })
     .returning();
+
+  const [[org], [sender]] = await Promise.all([
+    db.select({ name: organizations.name }).from(organizations).where(eq(organizations.id, organizationId)),
+    db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, senderId))
+  ]);
+  void createNotification({
+    userId: receiverId,
+    type: 'org_invitation_received',
+    title: 'Organization invitation',
+    message: `${sender?.name ?? sender?.email ?? 'Someone'} invited you to join ${org?.name ?? 'an organization'}.`,
+    relatedEntityType: 'org_invitation',
+    relatedEntityId: created.id
+  });
+
   return created;
 }
 
@@ -238,6 +253,19 @@ export async function acceptOrgInvitation(
     .insert(organizationMembers)
     .values({ organizationId: inv.organizationId, userId, role: 'member' })
     .onConflictDoNothing();
+
+  const [[acceptor], [org]] = await Promise.all([
+    db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, userId)),
+    db.select({ name: organizations.name }).from(organizations).where(eq(organizations.id, inv.organizationId))
+  ]);
+  void createNotification({
+    userId: inv.senderId,
+    type: 'org_invitation_accepted',
+    title: 'Invitation accepted',
+    message: `${acceptor?.name ?? acceptor?.email ?? 'Someone'} accepted your invitation to ${org?.name ?? 'your organization'}.`,
+    relatedEntityType: 'org_invitation',
+    relatedEntityId: invitationId
+  });
 }
 
 // ── Reject org invitation ─────────────────────────────────────────────────────

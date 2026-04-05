@@ -5,7 +5,8 @@ export default {
     './lib/auth/schema.ts',
     './lib/contacts/schema.ts',
     './lib/organizations/schema.ts',
-    './lib/tasks/schema.ts'
+    './lib/tasks/schema.ts',
+    './lib/notifications/schema.ts'
   ],
   out: './drizzle',
   dialect: 'postgresql',

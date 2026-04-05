@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -52,6 +52,7 @@ export function CalendarClient() {
   const [newStart, setNewStart] = useState('');
   const [newEnd, setNewEnd] = useState('');
   const [creating, setCreating] = useState(false);
+  const [arranging, setArranging] = useState(false);
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
@@ -81,6 +82,24 @@ export function CalendarClient() {
     setNewEnd(end.toISOString().slice(0, 16));
     setNewTitle('');
     setCreateOpen(true);
+  }
+
+  async function handleAutoArrange() {
+    setArranging(true);
+    const res = await fetch('/api/calendar/auto-arrange', { method: 'POST' });
+    if (res.ok) {
+      const arranged: TaskWithContext[] = await res.json();
+      // Filter to current week and update display
+      const from = weekStart;
+      const to = addDays(weekStart, 7);
+      const weekTasks = arranged.filter((t) => {
+        const start = t.startAt ? new Date(t.startAt) : t.dueDate ? new Date(t.dueDate) : null;
+        if (!start) return false;
+        return start >= from && start < to;
+      });
+      setTasks(weekTasks);
+    }
+    setArranging(false);
   }
 
   async function handleCreate() {
@@ -120,6 +139,16 @@ export function CalendarClient() {
           {weekStart.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
         </span>
         {loading && <span className="text-xs text-muted-foreground ml-2">Loading…</span>}
+        <Button
+          variant="outline"
+          size="sm"
+          className="ml-auto gap-1.5"
+          onClick={handleAutoArrange}
+          disabled={arranging}
+        >
+          <Wand2 className="h-4 w-4" />
+          {arranging ? 'Arranging…' : 'Auto-arrange'}
+        </Button>
       </div>
 
       {/* Grid */}

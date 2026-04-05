@@ -6,6 +6,7 @@ import { tasks } from './schema';
 import { users } from '@/lib/auth/schema';
 import { organizations, organizationMembers } from '@/lib/organizations/schema';
 import { Errors } from '@/lib/errors';
+import { createNotification } from '@/lib/notifications/service';
 import type { Task, NewTask, PaginatedTasks, TaskWithContext } from './types';
 import type { CreateTaskInput, UpdateTaskInput, ListTasksQuery } from './validation';
 
@@ -169,6 +170,22 @@ export async function createTask(data: CreateTaskInput, userId: string): Promise
   };
 
   const [task] = await db.insert(tasks).values(insert).returning();
+
+  if (insert.assignedToUserId) {
+    const [creator] = await db
+      .select({ name: users.name, email: users.email })
+      .from(users)
+      .where(eq(users.id, userId));
+    void createNotification({
+      userId: insert.assignedToUserId,
+      type: 'task_assigned',
+      title: 'Task assigned to you',
+      message: `${creator?.name ?? creator?.email ?? 'Someone'} assigned you the task "${insert.title}".`,
+      relatedEntityType: 'task',
+      relatedEntityId: task.id
+    });
+  }
+
   const [enriched] = await enrichTasks([task]);
   return enriched;
 }
@@ -211,6 +228,38 @@ export async function updateTask(
     .set(patch)
     .where(eq(tasks.id, id))
     .returning();
+
+  // Notify task owner when assigned user updates status
+  if (!isOwner && data.status !== undefined && task.userId !== userId) {
+    const [updater] = await db
+      .select({ name: users.name, email: users.email })
+      .from(users)
+      .where(eq(users.id, userId));
+    void createNotification({
+      userId: task.userId,
+      type: 'task_status_updated',
+      title: 'Task status updated',
+      message: `${updater?.name ?? updater?.email ?? 'Someone'} updated the status of "${task.title}" to ${data.status}.`,
+      relatedEntityType: 'task',
+      relatedEntityId: id
+    });
+  }
+
+  // Notify new assignee when owner assigns/reassigns
+  if (isOwner && data.assignedToUserId && data.assignedToUserId !== task.assignedToUserId) {
+    const [assigner] = await db
+      .select({ name: users.name, email: users.email })
+      .from(users)
+      .where(eq(users.id, userId));
+    void createNotification({
+      userId: data.assignedToUserId,
+      type: 'task_assigned',
+      title: 'Task assigned to you',
+      message: `${assigner?.name ?? assigner?.email ?? 'Someone'} assigned you the task "${task.title}".`,
+      relatedEntityType: 'task',
+      relatedEntityId: id
+    });
+  }
 
   const [enriched] = await enrichTasks([updated]);
   return enriched;
@@ -296,6 +345,22 @@ export async function createOrgTask(
   };
 
   const [task] = await db.insert(tasks).values(insert).returning();
+
+  if (insert.assignedToUserId) {
+    const [creator] = await db
+      .select({ name: users.name, email: users.email })
+      .from(users)
+      .where(eq(users.id, userId));
+    void createNotification({
+      userId: insert.assignedToUserId,
+      type: 'task_assigned',
+      title: 'Task assigned to you',
+      message: `${creator?.name ?? creator?.email ?? 'Someone'} assigned you the task "${insert.title}".`,
+      relatedEntityType: 'task',
+      relatedEntityId: task.id
+    });
+  }
+
   const [enriched] = await enrichTasks([task]);
   return enriched;
 }

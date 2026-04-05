@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 import { contactRequests } from './schema';
 import { users } from '@/lib/auth/schema';
 import { Errors } from '@/lib/errors';
+import { createNotification } from '@/lib/notifications/service';
 import type { ContactWithUser } from './types';
 
 // ── Send invitation ───────────────────────────────────────────────────────────
@@ -49,6 +50,20 @@ export async function sendContactRequest(
     .insert(contactRequests)
     .values({ senderId, receiverId })
     .returning();
+
+  const [sender] = await db
+    .select({ name: users.name, email: users.email })
+    .from(users)
+    .where(eq(users.id, senderId));
+  void createNotification({
+    userId: receiverId,
+    type: 'contact_invitation_received',
+    title: 'New contact request',
+    message: `${sender?.name ?? sender?.email ?? 'Someone'} sent you a contact request.`,
+    relatedEntityType: 'contact_request',
+    relatedEntityId: created.id
+  });
+
   return created;
 }
 
@@ -72,6 +87,20 @@ export async function acceptContactRequest(
     .set({ status: 'accepted', updatedAt: new Date() })
     .where(eq(contactRequests.id, requestId))
     .returning();
+
+  const [acceptor] = await db
+    .select({ name: users.name, email: users.email })
+    .from(users)
+    .where(eq(users.id, currentUserId));
+  void createNotification({
+    userId: request.senderId,
+    type: 'contact_invitation_accepted',
+    title: 'Contact request accepted',
+    message: `${acceptor?.name ?? acceptor?.email ?? 'Someone'} accepted your contact request.`,
+    relatedEntityType: 'contact_request',
+    relatedEntityId: requestId
+  });
+
   return updated;
 }
 

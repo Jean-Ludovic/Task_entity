@@ -3,6 +3,11 @@ import { NextRequest } from 'next/server';
 
 vi.mock('server-only', () => ({}));
 
+// Les routes tasks utilisent auth() — on le mocke avec une session valide par défaut
+vi.mock('@/lib/auth', () => ({
+  auth: vi.fn()
+}));
+
 vi.mock('@/lib/tasks/service', () => ({
   createTask: vi.fn(),
   listTasks: vi.fn()
@@ -10,9 +15,16 @@ vi.mock('@/lib/tasks/service', () => ({
 
 import { POST, GET } from '@/app/api/tasks/route';
 import { createTask, listTasks } from '@/lib/tasks/service';
+import { auth } from '@/lib/auth';
 
 const mockCreateTask = vi.mocked(createTask);
 const mockListTasks = vi.mocked(listTasks);
+const mockAuth = vi.mocked(auth);
+
+// Session par défaut : utilisateur connecté pour tous les tests
+beforeEach(() => {
+  mockAuth.mockResolvedValue({ user: { id: 'user-1' } } as never);
+});
 
 const now = new Date('2026-01-01T00:00:00.000Z');
 
@@ -55,8 +67,10 @@ describe('POST /api/tasks', () => {
       createdAt: now.toISOString(),
       updatedAt: now.toISOString()
     });
+    // createTask est maintenant appelé avec (data, userId)
     expect(mockCreateTask).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'My task' })
+      expect.objectContaining({ title: 'My task' }),
+      'user-1'
     );
   });
 
@@ -92,8 +106,10 @@ describe('GET /api/tasks', () => {
   it('passes status filter to service', async () => {
     mockListTasks.mockResolvedValue({ tasks: [], nextCursor: null });
     await GET(makeGetRequest({ status: 'done' }) as never);
+    // listTasks est maintenant appelé avec (query, userId)
     expect(mockListTasks).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 'done' })
+      expect.objectContaining({ status: 'done' }),
+      'user-1'
     );
   });
 

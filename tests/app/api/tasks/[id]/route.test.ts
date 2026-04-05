@@ -2,6 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 
+// Les routes tasks utilisent auth() — on le mocke avec une session valide par défaut
+vi.mock('@/lib/auth', () => ({
+  auth: vi.fn()
+}));
+
 vi.mock('@/lib/tasks/service', () => ({
   getTaskById: vi.fn(),
   updateTask: vi.fn(),
@@ -10,11 +15,18 @@ vi.mock('@/lib/tasks/service', () => ({
 
 import { GET, PUT, DELETE } from '@/app/api/tasks/[id]/route';
 import { getTaskById, updateTask, deleteTask } from '@/lib/tasks/service';
+import { auth } from '@/lib/auth';
 import { Errors } from '@/lib/errors';
 
 const mockGetTaskById = vi.mocked(getTaskById);
 const mockUpdateTask = vi.mocked(updateTask);
 const mockDeleteTask = vi.mocked(deleteTask);
+const mockAuth = vi.mocked(auth);
+
+// Session par défaut : utilisateur connecté pour tous les tests
+beforeEach(() => {
+  mockAuth.mockResolvedValue({ user: { id: 'user-1' } } as never);
+});
 
 const mockTask = {
   id: 'uuid-1',
@@ -88,9 +100,11 @@ describe('PUT /api/tasks/[id]', () => {
     mockUpdateTask.mockResolvedValue(mockTask);
     const res = await PUT(makeRequest('PUT', { status: 'in_progress' }) as never, makeContext('uuid-1'));
     expect(res.status).toBe(200);
+    // updateTask est maintenant appelé avec (id, data, userId)
     expect(mockUpdateTask).toHaveBeenCalledWith(
       'uuid-1',
-      expect.objectContaining({ status: 'in_progress' })
+      expect.objectContaining({ status: 'in_progress' }),
+      'user-1'
     );
   });
 });

@@ -51,7 +51,8 @@ describe('createTask', () => {
   it('inserts a task and returns it', async () => {
     const result = await createTask({ title: 'Test task', status: 'todo' });
     expect(mockDb.insert).toHaveBeenCalledOnce();
-    expect(result).toEqual(mockTask);
+    // toMatchObject car enrichTasks ajoute les champs contextuels (assignedBy, assignedTo, organization)
+    expect(result).toMatchObject(mockTask);
   });
 
   it('maps dueDate string to a Date object', async () => {
@@ -91,7 +92,8 @@ describe('getTaskById', () => {
 
   it('returns the task when found', async () => {
     const result = await getTaskById('uuid-1');
-    expect(result).toEqual(mockTask);
+    // toMatchObject car enrichTasks ajoute les champs contextuels (assignedBy, assignedTo, organization)
+    expect(result).toMatchObject(mockTask);
   });
 
   it('throws NOT_FOUND when task does not exist', async () => {
@@ -129,7 +131,8 @@ describe('updateTask', () => {
 
   it('returns the updated task', async () => {
     const result = await updateTask('uuid-1', { title: 'Updated', status: 'done' });
-    expect(result).toEqual(updatedTask);
+    // toMatchObject car enrichTasks ajoute les champs contextuels (assignedBy, assignedTo, organization)
+    expect(result).toMatchObject(updatedTask);
   });
 
   it('always sets updatedAt', async () => {

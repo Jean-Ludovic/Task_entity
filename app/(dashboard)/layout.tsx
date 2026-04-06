@@ -54,7 +54,7 @@ function DesktopNav() {
       </div>
 
       <nav className="flex flex-col gap-1 px-2 py-4">
-        <NavItem href="/tasks" label="Dashboard">
+        <NavItem href="/" label="Dashboard">
           <LayoutDashboard className="h-5 w-5" />
         </NavItem>
         <NavItem href="/tasks" label="Tasks">
@@ -102,7 +102,7 @@ function MobileNav() {
             <span className="sr-only">TaskFlow</span>
           </Link>
           <Link
-            href="/tasks"
+            href="/"
             className="flex items-center gap-4 px-2.5 text-foreground"
           >
             <LayoutDashboard className="h-5 w-5" />

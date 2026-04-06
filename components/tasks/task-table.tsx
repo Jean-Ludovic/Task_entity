@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useCallback, useEffect } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { PlusCircle, Pencil, Trash2, Search, ArrowUpDown } from 'lucide-react';
+import { PlusCircle, Pencil, Trash2, Search, ArrowUpDown, Sparkles, Wand2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -13,6 +13,8 @@ import {
 } from '@/components/ui/card';
 import { TaskStatusBadge } from './task-status-badge';
 import { TaskModal } from './task-modal';
+import { TaskAssistantModal } from '@/components/ai/task-assistant-modal';
+import { useSmartSearch } from '@/hooks/use-ai';
 import type { TaskWithContext } from '@/lib/tasks/types';
 import type { CreateTaskInput } from '@/lib/tasks/validation';
 
@@ -44,7 +46,11 @@ export function TaskTable({ initialData, currentUserId }: Props) {
   const [nextCursor, setNextCursor] = useState<string | null>(initialData.nextCursor);
   const [loadingMore, setLoadingMore] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskWithContext | undefined>();
+  const [smartSearchMode, setSmartSearchMode] = useState(false);
+  const [smartSearchInput, setSmartSearchInput] = useState('');
+  const { parseQuery, loading: smartSearchLoading } = useSmartSearch();
 
   useEffect(() => {
     setTasks(initialData.tasks);
@@ -78,6 +84,36 @@ export function TaskTable({ initialData, currentUserId }: Props) {
     if (!res.ok) throw new Error('Failed to create task');
     const created: TaskWithContext = await res.json();
     setTasks((prev) => [created, ...prev]);
+  }
+
+  async function handleCreateMany(tasksData: CreateTaskInput[]) {
+    const created = await Promise.all(
+      tasksData.map(async (data) => {
+        const res = await fetch('/api/tasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        if (!res.ok) throw new Error('Failed to create task');
+        return res.json() as Promise<TaskWithContext>;
+      })
+    );
+    setTasks((prev) => [...created.reverse(), ...prev]);
+  }
+
+  async function handleSmartSearch(query: string) {
+    if (!query.trim()) return;
+    try {
+      const result = await parseQuery(query);
+      const { filters } = result;
+      const updates: Record<string, string> = {};
+      if (filters.status) updates.status = filters.status;
+      if (filters.keywords.length) updates.q = filters.keywords.join(' ');
+      updateParams(updates);
+    } catch {
+      // fall back to regular text search
+      updateParam('q', query);
+    }
   }
 
   async function handleUpdate(data: CreateTaskInput) {
@@ -140,27 +176,73 @@ export function TaskTable({ initialData, currentUserId }: Props) {
               <CardTitle>Tasks</CardTitle>
               <CardDescription>Manage your tasks and track progress.</CardDescription>
             </div>
-            <Button
-              size="sm"
-              className="h-8 gap-1"
-              onClick={() => { setEditingTask(undefined); setModalOpen(true); }}
-            >
-              <PlusCircle className="h-3.5 w-3.5" />
-              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Add Task</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 gap-1 border-violet-300 text-violet-700 hover:bg-violet-50 hover:text-violet-800 dark:border-violet-700 dark:text-violet-400 dark:hover:bg-violet-950"
+                onClick={() => setAiModalOpen(true)}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Create with AI</span>
+              </Button>
+              <Button
+                size="sm"
+                className="h-8 gap-1"
+                onClick={() => { setEditingTask(undefined); setModalOpen(true); }}
+              >
+                <PlusCircle className="h-3.5 w-3.5" />
+                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Add Task</span>
+              </Button>
+            </div>
           </div>
 
           {/* Filter bar */}
           <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search tasks…"
-                value={searchInput}
-                className="pl-8"
-                onChange={(e) => setSearchInput(e.target.value)}
-              />
+              {smartSearchMode ? (
+                <>
+                  <Wand2 className="absolute left-2.5 top-2.5 h-4 w-4 text-violet-500" />
+                  {smartSearchLoading && (
+                    <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                  <Input
+                    placeholder="e.g. show me urgent tasks due this week…"
+                    value={smartSearchInput}
+                    className="pl-8 pr-8 border-violet-300 focus-visible:ring-violet-400"
+                    onChange={(e) => setSmartSearchInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSmartSearch(smartSearchInput);
+                      if (e.key === 'Escape') { setSmartSearchMode(false); setSmartSearchInput(''); }
+                    }}
+                    autoFocus
+                  />
+                </>
+              ) : (
+                <>
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search tasks…"
+                    value={searchInput}
+                    className="pl-8"
+                    onChange={(e) => setSearchInput(e.target.value)}
+                  />
+                </>
+              )}
             </div>
+            <Button
+              size="sm"
+              variant={smartSearchMode ? 'default' : 'outline'}
+              className={`h-8 gap-1 shrink-0 ${smartSearchMode ? 'bg-violet-600 hover:bg-violet-700' : 'border-violet-300 text-violet-700 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-400'}`}
+              onClick={() => {
+                setSmartSearchMode((v) => !v);
+                setSmartSearchInput('');
+              }}
+              title="Toggle AI smart search"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">AI Search</span>
+            </Button>
             <div className="flex gap-1 flex-wrap">
               {STATUS_FILTERS.map((f) => (
                 <Button
@@ -281,6 +363,12 @@ export function TaskTable({ initialData, currentUserId }: Props) {
         task={editingTask}
         currentUserId={currentUserId}
         onSubmit={editingTask ? handleUpdate : handleCreate}
+      />
+
+      <TaskAssistantModal
+        open={aiModalOpen}
+        onOpenChange={setAiModalOpen}
+        onCreateTasks={handleCreateMany}
       />
     </>
   );

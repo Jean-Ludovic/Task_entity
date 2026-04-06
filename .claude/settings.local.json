@@ -37,7 +37,10 @@
       "Bash(ls /c/Users/NOSTRESS/Documents/LUDO/Code/task_entity/.env*)",
       "Bash(/c/Users/NOSTRESS/AppData/Local/Programs/Python/Python311/python.exe -m uvicorn api.ai:app --port 8000)",
       "Bash(curl -s -X POST http://localhost:8000/api/ai/task-assistant -H 'Content-Type: application/json' -d '{\"text\": \"Appeler le client lundi matin et finir le rapport avant vendredi\"}')",
-      "Bash(/c/Users/NOSTRESS/AppData/Local/Programs/Python/Python311/python.exe -m json.tool kill %1)"
+      "Bash(/c/Users/NOSTRESS/AppData/Local/Programs/Python/Python311/python.exe -m json.tool kill %1)",
+      "Bash(git checkout:*)",
+      "Bash(git push:*)",
+      "Bash(grep -v \"^$\")"
     ]
   }
 }

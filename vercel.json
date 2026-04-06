@@ -1,0 +1,11 @@
+{
+  "functions": {
+    "api/ai.py": {
+      "runtime": "python3.12",
+      "includeFiles": "ai_service/**"
+    }
+  },
+  "rewrites": [
+    { "source": "/api/ai/:path*", "destination": "/api/ai" }
+  ]
+}

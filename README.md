@@ -214,9 +214,13 @@ pnpm db:generate      # Générer les migrations Drizzle
 pnpm db:push          # Appliquer le schéma en base
 pnpm db:seed          # Injecter des données de test
 
-pnpm test             # Lancer les tests (Vitest)
-pnpm test:watch       # Tests en mode watch
+pnpm test             # Tests TypeScript uniquement (Vitest)
+pnpm test:watch       # Tests TypeScript en mode watch
+pnpm test:python      # Tests Python uniquement (pytest)
+pnpm test:all         # Tous les tests (TypeScript + Python)
 ```
+
+> Pour lancer tous les tests d'un coup : `pnpm test:all`
 
 ---
 

@@ -8,7 +8,9 @@
     "db:push": "drizzle-kit push",
     "db:seed": "tsx scripts/seed.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:python": "python -m pytest",
+    "test:all": "vitest run && python -m pytest"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.1",

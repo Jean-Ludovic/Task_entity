@@ -78,6 +78,26 @@ describe('UpdateTaskSchema', () => {
   });
 });
 
+describe('CreateTaskSchema — priority', () => {
+  it('accepts all valid priorities', () => {
+    for (const priority of ['low', 'medium', 'high'] as const) {
+      const result = CreateTaskSchema.safeParse({ title: 'T', priority });
+      expect(result.success).toBe(true);
+    }
+  });
+
+  it('rejects an invalid priority', () => {
+    const result = CreateTaskSchema.safeParse({ title: 'T', priority: 'critical' });
+    expect(result.success).toBe(false);
+  });
+
+  it('defaults priority to medium when not provided', () => {
+    const result = CreateTaskSchema.safeParse({ title: 'T' });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.priority).toBe('medium');
+  });
+});
+
 describe('ListTasksQuerySchema', () => {
   it('applies defaults when no params provided', () => {
     const result = ListTasksQuerySchema.safeParse({});
@@ -123,5 +143,22 @@ describe('ListTasksQuerySchema', () => {
       order: 'asc'
     });
     expect(result.success).toBe(true);
+  });
+
+  it('accepts valid priority filter', () => {
+    const result = ListTasksQuerySchema.safeParse({ priority: 'high' });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.priority).toBe('high');
+  });
+
+  it('rejects invalid priority filter', () => {
+    const result = ListTasksQuerySchema.safeParse({ priority: 'critical' });
+    expect(result.success).toBe(false);
+  });
+
+  it('priority is optional — defaults to undefined', () => {
+    const result = ListTasksQuerySchema.safeParse({});
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.priority).toBeUndefined();
   });
 });
